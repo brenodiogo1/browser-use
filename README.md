@@ -1,7 +1,9 @@
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="./static/github-banner-dark.png">
-  <source media="(prefers-color-scheme: light)" srcset="./static/github-banner.png">
-  <img alt="Shows a black Browser Use Logo in light color mode and a white one in dark color mode." src="./static/github-banner.png"  width="full">
+  <source media="(min-width: 768px) and (prefers-color-scheme: dark)" srcset="./static/github-banner-dark.png">
+  <source media="(min-width: 768px) and (prefers-color-scheme: light)" srcset="./static/github-banner.png">
+  <source media="(max-width: 767px) and (prefers-color-scheme: dark)" srcset="./static/browser-use-dark.png">
+  <source media="(max-width: 767px) and (prefers-color-scheme: light)" srcset="./static/browser-use.png">
+  <img alt="Shows a black Browser Use Logo in light color mode and a white one in dark color mode." src="./static/github-banner.png" width="full">
 </picture>
 
 <h1 align="center"></h1>
