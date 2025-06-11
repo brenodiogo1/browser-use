@@ -2,6 +2,8 @@
   <img alt="Shows a black Browser Use Logo in light color mode and a white one in dark color mode." src="./static/github_banner.png"  width="full">
 </picture>
 
+<br />
+
 [![GitHub stars](https://img.shields.io/github/stars/gregpr07/browser-use?style=social)](https://github.com/gregpr07/browser-use/stargazers)
 [![Discord](https://img.shields.io/discord/1303749220842340412?color=7289DA&label=Discord&logo=discord&logoColor=white)](https://link.browser-use.com/discord)
 [![Cloud](https://img.shields.io/badge/Cloud-☁️-blue)](https://cloud.browser-use.com)
