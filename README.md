@@ -1,10 +1,8 @@
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="./static/browser-use-dark.png">
-  <source media="(prefers-color-scheme: light)" srcset="./static/browser-use.png">
-  <img alt="Shows a black Browser Use Logo in light color mode and a white one in dark color mode." src="./static/browser-use.png"  width="full">
+  <img alt="Shows a black Browser Use Logo in light color mode and a white one in dark color mode." src="./static/github_banner.png"  width="full">
 </picture>
 
-<h1 align="center">Enable AI to control your browser 🤖</h1>
+<hr />
 
 [![GitHub stars](https://img.shields.io/github/stars/gregpr07/browser-use?style=social)](https://github.com/gregpr07/browser-use/stargazers)
 [![Discord](https://img.shields.io/discord/1303749220842340412?color=7289DA&label=Discord&logo=discord&logoColor=white)](https://link.browser-use.com/discord)
@@ -28,13 +26,14 @@ With pip (Python>=3.11):
 pip install browser-use
 ```
 
-For memory functionality (requires Python<3.13 due to PyTorch compatibility):  
+For memory functionality (requires Python<3.13 due to PyTorch compatibility):
 
 ```bash
 pip install "browser-use[memory]"
 ```
 
 Install the browser:
+
 ```bash
 playwright install chromium --with-deps --no-shell
 ```
@@ -156,11 +155,9 @@ Tell your computer what to do, and it gets it done.
 
 - [ ] Human work is sequential. The real power of a browser agent comes into reality if we can parallelize similar tasks. For example, if you want to find contact information for 100 companies, this can all be done in parallel and reported back to a main agent, which processes the results and kicks off parallel subtasks again.
 
-
 ## Contributing
 
 We love contributions! Feel free to open issues for bugs or feature requests. To contribute to the docs, check out the `/docs` folder.
-
 
 ## 🧪 How to make your agents robust?
 
@@ -172,7 +169,6 @@ We offer to run your tasks in our CI—automatically, on every update!
 ## Local Setup
 
 To learn more about the library, check out the [local setup 📕](https://docs.browser-use.com/development/local-setup).
-
 
 `main` is the primary development branch with frequent changes. For production use, install a stable [versioned release](https://github.com/browser-use/browser-use/releases) instead.
 
