@@ -1,8 +1,10 @@
 <picture>
-  <img alt="Shows a black Browser Use Logo in light color mode and a white one in dark color mode." src="./static/github_banner.png"  width="full">
+  <source media="(prefers-color-scheme: dark)" srcset="./static/github-banner-dark.png">
+  <source media="(prefers-color-scheme: light)" srcset="./static/github-banner.png">
+  <img alt="Shows a black Browser Use Logo in light color mode and a white one in dark color mode." src="./static/github-banner.png"  width="full">
 </picture>
 
-<br />
+<h1 align="center"></h1>
 
 [![GitHub stars](https://img.shields.io/github/stars/gregpr07/browser-use?style=social)](https://github.com/gregpr07/browser-use/stargazers)
 [![Discord](https://img.shields.io/discord/1303749220842340412?color=7289DA&label=Discord&logo=discord&logoColor=white)](https://link.browser-use.com/discord)
