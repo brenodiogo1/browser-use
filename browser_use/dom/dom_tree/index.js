@@ -735,6 +735,8 @@
 
     if (hasInteractiveRole) return true;
 
+    return false
+
 
     // check whether element has event listeners by window.getEventListeners
     try {
@@ -1059,8 +1061,6 @@
       return true;
     }
 
-    // return false
-
     // Check for other common interaction event listeners
     try {
       const getEventListenersForNode = element?.ownerDocument?.defaultView?.getEventListenersForNode || window.getEventListenersForNode;
@@ -1086,6 +1086,7 @@
     }
 
 
+    return false
 
     // if the element is not strictly interactive but appears clickable based on heuristic signals
     if (isHeuristicallyInteractive(element)) {
