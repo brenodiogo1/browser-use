@@ -735,6 +735,8 @@
 
     if (hasInteractiveRole) return true;
 
+    // return false
+
 
     // check whether element has event listeners by window.getEventListeners
     try {
@@ -1085,7 +1087,7 @@
       // If checking listeners fails, rely on other checks
     }
 
-
+    // return false
 
     // if the element is not strictly interactive but appears clickable based on heuristic signals
     if (isHeuristicallyInteractive(element)) {

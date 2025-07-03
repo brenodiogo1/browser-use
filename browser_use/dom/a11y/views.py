@@ -144,7 +144,305 @@ class DOMTreeResponse(BaseModel):
 	frame_count: int = Field(description='Number of frames encountered')
 
 
+# Combined tree types
+class CombinedBaseNode(BaseModel):
+	"""Base class for combined DOM + Accessibility tree nodes."""
+
+	# DOM properties
+	node_id: int = Field(description='DOM node identifier')
+	backend_node_id: int = Field(description='Backend node identifier')
+	node_type: NodeType = Field(description='DOM node type')
+	node_name: str = Field(description='DOM node name')
+	node_value: str = Field(description='DOM node value')
+
+	# Accessibility data (None if no accessibility node attached)
+	accessibility: AXNode | None = Field(None, description='Accessibility node data if available')
+
+	# Tree structure
+	parent: Optional['CombinedBaseNode'] = Field(None, description='Parent node reference', exclude=True)
+	children: list['CombinedBaseNode'] = Field(default_factory=list, description='Child nodes')
+
+	# Visibility and state
+	is_visible: bool = Field(default=True, description='Whether node is visible')
+	is_new: bool | None = Field(None, description='Whether node is new since last state')
+
+	def has_accessibility_data(self) -> bool:
+		"""Check if this node has accessibility data attached."""
+		return self.accessibility is not None
+
+	def has_parent_with_accessibility(self) -> bool:
+		"""Check if any parent node has accessibility data."""
+		current = self.parent
+		while current:
+			if current.has_accessibility_data():
+				return True
+			current = current.parent
+		return False
+
+	def get_accessibility_role(self) -> str | None:
+		"""Get the accessibility role if available."""
+		if self.accessibility and self.accessibility.role:
+			return str(self.accessibility.role.value) if self.accessibility.role.value else None
+		return None
+
+	def get_accessibility_name(self) -> str | None:
+		"""Get the accessibility name if available."""
+		if self.accessibility and self.accessibility.name:
+			return str(self.accessibility.name.value) if self.accessibility.name.value else None
+		return None
+
+	def get_accessibility_description(self) -> str | None:
+		"""Get the accessibility description if available."""
+		if self.accessibility and self.accessibility.description:
+			return str(self.accessibility.description.value) if self.accessibility.description.value else None
+		return None
+
+
+class CombinedTextNode(CombinedBaseNode):
+	"""Text node in the combined tree."""
+
+	text: str = Field(description='Text content')
+	type: str = Field(default='TEXT_NODE', description='Node type identifier')
+
+	def __json__(self) -> dict:
+		return {
+			'type': self.type,
+			'text': self.text,
+			'node_id': self.node_id,
+			'backend_node_id': self.backend_node_id,
+			'is_visible': self.is_visible,
+			'has_accessibility': self.has_accessibility_data(),
+			'accessibility_role': self.get_accessibility_role(),
+			'accessibility_name': self.get_accessibility_name(),
+		}
+
+	def __repr__(self) -> str:
+		extras = []
+		if self.has_accessibility_data():
+			role = self.get_accessibility_role()
+			if role:
+				extras.append(f'a11y:{role}')
+		if self.is_new:
+			extras.append('new')
+
+		extra_str = f' [{", ".join(extras)}]' if extras else ''
+		return f'Text: "{self.text}"{extra_str}'
+
+
+class CombinedElementNode(CombinedBaseNode):
+	"""Element node in the combined tree with DOM and accessibility data."""
+
+	tag_name: str = Field(description='HTML tag name')
+	attributes: dict[str, str] = Field(default_factory=dict, description='DOM attributes')
+
+	# Interaction properties
+	is_interactive: bool = Field(default=False, description='Whether element is interactive')
+	is_top_element: bool = Field(default=False, description='Whether element is top-level')
+	is_in_viewport: bool = Field(default=False, description='Whether element is in viewport')
+
+	# Layout properties
+	shadow_root: bool = Field(default=False, description='Whether element has shadow root')
+	xpath: str | None = Field(None, description='XPath to element')
+
+	def __json__(self) -> dict:
+		return {
+			'tag_name': self.tag_name,
+			'attributes': self.attributes,
+			'node_id': self.node_id,
+			'backend_node_id': self.backend_node_id,
+			'is_visible': self.is_visible,
+			'is_interactive': self.is_interactive,
+			'is_top_element': self.is_top_element,
+			'is_in_viewport': self.is_in_viewport,
+			'shadow_root': self.shadow_root,
+			'xpath': self.xpath,
+			'has_accessibility': self.has_accessibility_data(),
+			'accessibility_role': self.get_accessibility_role(),
+			'accessibility_name': self.get_accessibility_name(),
+			'accessibility_description': self.get_accessibility_description(),
+			'children': [child.__json__() for child in self.children],
+		}
+
+	def __repr__(self) -> str:
+		tag_str = f'<{self.tag_name}'
+
+		# Add key attributes
+		key_attrs = ['id', 'class', 'type', 'role']
+		for attr in key_attrs:
+			if attr in self.attributes:
+				tag_str += f' {attr}="{self.attributes[attr]}"'
+		tag_str += '>'
+
+		# Add extra info
+		extras = []
+		if self.is_interactive:
+			extras.append('interactive')
+		if self.is_top_element:
+			extras.append('top')
+		if self.shadow_root:
+			extras.append('shadow-root')
+		if self.is_in_viewport:
+			extras.append('in-viewport')
+		if self.has_accessibility_data():
+			role = self.get_accessibility_role()
+			if role:
+				extras.append(f'a11y:{role}')
+		if self.is_new:
+			extras.append('new')
+
+		if extras:
+			tag_str += f' [{", ".join(extras)}]'
+
+		return tag_str
+
+	def get_all_text_till_next_accessible_element(self, max_depth: int = -1) -> str:
+		"""Get all text content until hitting another element with accessibility data."""
+		text_parts = []
+
+		def collect_text(node: CombinedBaseNode, current_depth: int) -> None:
+			if max_depth != -1 and current_depth > max_depth:
+				return
+
+			# Skip this branch if we hit an accessible element (except for the current node)
+			if isinstance(node, CombinedElementNode) and node != self and node.has_accessibility_data():
+				return
+
+			if isinstance(node, CombinedTextNode):
+				text_parts.append(node.text)
+			elif isinstance(node, CombinedElementNode):
+				for child in node.children:
+					collect_text(child, current_depth + 1)
+
+		collect_text(self, 0)
+		return '\n'.join(text_parts).strip()
+
+	def accessible_elements_to_string(self, include_attributes: list[str] | None = None) -> str:
+		"""Convert the processed DOM content to HTML, focusing on accessible elements."""
+		formatted_text = []
+
+		if not include_attributes:
+			from browser_use.dom.views import DEFAULT_INCLUDE_ATTRIBUTES
+
+			include_attributes = DEFAULT_INCLUDE_ATTRIBUTES
+
+		def process_node(node: CombinedBaseNode, depth: int) -> None:
+			next_depth = int(depth)
+			depth_str = depth * '\t'
+
+			if isinstance(node, CombinedElementNode):
+				# Only process if node has accessibility data and it's not ignored
+				if node.has_accessibility_data() and node.accessibility and not node.accessibility.ignored:
+					next_depth += 1
+
+					text = node.get_all_text_till_next_accessible_element()
+					attributes_html_str = None
+
+					if include_attributes:
+						attributes_to_include = {
+							key: str(value).strip()
+							for key, value in node.attributes.items()
+							if key in include_attributes and str(value).strip() != ''
+						}
+
+						# Remove duplicate values (same logic as DOMElementNode)
+						ordered_keys = [key for key in include_attributes if key in attributes_to_include]
+
+						if len(ordered_keys) > 1:
+							keys_to_remove = set()
+							seen_values = {}
+
+							for key in ordered_keys:
+								value = attributes_to_include[key]
+								if len(value) > 5:
+									if value in seen_values:
+										keys_to_remove.add(key)
+									else:
+										seen_values[value] = key
+
+							for key in keys_to_remove:
+								del attributes_to_include[key]
+
+						# Remove attributes that duplicate accessibility data
+						role = node.get_accessibility_role()
+						name = node.get_accessibility_name()
+
+						if role and node.tag_name == role:
+							attributes_to_include.pop('role', None)
+
+						attrs_to_remove_if_text_matches = ['aria-label', 'placeholder', 'title']
+						for attr in attrs_to_remove_if_text_matches:
+							attr_value = attributes_to_include.get(attr, '').strip().lower()
+							if attr_value and (
+								attr_value == text.strip().lower() or (name and attr_value == name.strip().lower())
+							):
+								del attributes_to_include[attr]
+
+						if attributes_to_include:
+							# Cap text length for display
+							def cap_text_length(text: str, max_length: int) -> str:
+								return f'"{text[:max_length]}..."' if len(text) > max_length else f'"{text}"'
+
+							attributes_html_str = ' '.join(
+								f'{key}={cap_text_length(value, 15)}' for key, value in attributes_to_include.items()
+							)
+
+					# Build the line with accessibility indicator
+					if node.is_new:
+						accessibility_indicator = f'*[a11y:{node.get_accessibility_role() or "unknown"}]'
+					else:
+						accessibility_indicator = f'[a11y:{node.get_accessibility_role() or "unknown"}]'
+
+					line = f'{depth_str}{accessibility_indicator}<{node.tag_name}'
+
+					if attributes_html_str:
+						line += f' {attributes_html_str}'
+
+					# Add accessibility name if different from text
+					name = node.get_accessibility_name()
+					if name and name.strip() != text.strip():
+						line += f' name="{name[:20]}..."' if len(name) > 20 else f' name="{name}"'
+
+					if text:
+						text = text.strip()
+						if not attributes_html_str:
+							line += ' '
+						line += f'>{text}'
+					elif not attributes_html_str:
+						line += ' '
+
+					line += ' />'
+					formatted_text.append(line)
+
+				# Process children regardless
+				for child in node.children:
+					process_node(child, next_depth)
+
+			elif isinstance(node, CombinedTextNode):
+				# Add text only if it doesn't have a parent with accessibility data
+				if node.has_parent_with_accessibility():
+					return
+
+				if node.parent and node.parent.is_visible and node.parent.is_top_element:
+					formatted_text.append(f'{depth_str}{node.text}')
+
+		process_node(self, 0)
+		return '\n'.join(formatted_text)
+
+
+class CombinedTreeResponse(BaseModel):
+	"""Response containing the combined DOM + accessibility tree."""
+
+	root: CombinedBaseNode = Field(description='Root node of the combined tree')
+	total_nodes: int = Field(description='Total number of nodes in the tree')
+	accessible_nodes: int = Field(description='Number of nodes with accessibility data')
+	interactive_nodes: int = Field(description='Number of interactive nodes')
+	metadata: dict[str, Any] = Field(default_factory=dict, description='Additional metadata about the tree')
+
+
 # Enable forward references
 DOMNode.model_rebuild()
 AXValue.model_rebuild()
 AXValueSource.model_rebuild()
+CombinedBaseNode.model_rebuild()
+CombinedTextNode.model_rebuild()
+CombinedElementNode.model_rebuild()
