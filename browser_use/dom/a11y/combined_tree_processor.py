@@ -133,7 +133,7 @@ class CombinedTreeProcessor:
 					attributes=attributes,
 					accessibility=accessibility_data,
 					is_interactive=is_interactive,
-					is_top_element=True,  # Could be refined based on specific criteria
+					# is_top_element=True,  # Could be refined based on specific criteria
 					is_in_viewport=True,  # Could be refined with actual viewport checks
 					parent=None,
 					is_new=True,

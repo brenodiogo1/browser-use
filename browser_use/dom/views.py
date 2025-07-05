@@ -57,7 +57,6 @@ DEFAULT_INCLUDE_ATTRIBUTES = [
 	'title',
 	'type',
 	'checked',
-	'name',
 	'role',
 	'value',
 	'placeholder',
@@ -67,6 +66,7 @@ DEFAULT_INCLUDE_ATTRIBUTES = [
 	'aria-expanded',
 	'data-state',
 	'aria-checked',
+	'name',
 ]
 
 

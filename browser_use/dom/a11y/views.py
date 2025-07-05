@@ -247,7 +247,7 @@ class CombinedElementNode(CombinedBaseNode):
 
 	# Interaction properties
 	is_interactive: bool = Field(default=False, description='Whether element is interactive')
-	is_top_element: bool = Field(default=False, description='Whether element is top-level')
+	# is_top_element: bool = Field(default=False, description='Whether element is top-level')
 	is_in_viewport: bool = Field(default=False, description='Whether element is in viewport')
 
 	# Layout properties
@@ -262,7 +262,6 @@ class CombinedElementNode(CombinedBaseNode):
 			'backend_node_id': self.backend_node_id,
 			'is_visible': self.is_visible,
 			'is_interactive': self.is_interactive,
-			'is_top_element': self.is_top_element,
 			'is_in_viewport': self.is_in_viewport,
 			'shadow_root': self.shadow_root,
 			'xpath': self.xpath,
@@ -287,8 +286,6 @@ class CombinedElementNode(CombinedBaseNode):
 		extras = []
 		if self.is_interactive:
 			extras.append('interactive')
-		if self.is_top_element:
-			extras.append('top')
 		if self.shadow_root:
 			extras.append('shadow-root')
 		if self.is_in_viewport:
@@ -341,11 +338,19 @@ class CombinedElementNode(CombinedBaseNode):
 
 			if isinstance(node, CombinedElementNode):
 				# Only process if node has accessibility data and it's not ignored
+
+				# we can add more pre-filters here
+				quick_filter_away = True
+
+				if node.get_accessibility_role() == 'RootWebArea':
+					quick_filter_away = False
+
 				if (
-					node.has_accessibility_data()
+					quick_filter_away
+					and node.has_accessibility_data()
 					and node.accessibility
 					and not node.accessibility.ignored
-					and node.accessibility.has_property('focusable', True)
+					and node.is_interactive
 				):
 					next_depth += 1
 

@@ -22,7 +22,7 @@ class A11yService:
 		if self.browser.browser_context is None:
 			raise ValueError('Browser context is not initialized')
 
-		cdp = await self.browser.browser_context.new_cdp_session(page)
+		cdp = await self.browser.browser_context.new_cdp_session(page)  # type: ignore
 
 		await cdp.send('Accessibility.enable')
 		await cdp.send('DOM.enable')
@@ -37,7 +37,7 @@ class A11yService:
 		if self.browser.browser_context is None:
 			raise ValueError('Browser context is not initialized')
 
-		cdp = await self.browser.browser_context.new_cdp_session(page)
+		cdp = await self.browser.browser_context.new_cdp_session(page)  # type: ignore
 
 		try:
 			# Enable DOM domain
