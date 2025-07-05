@@ -88,6 +88,14 @@ class AXNode(BaseModel):
 	backendDOMNodeId: int | None = Field(None, description='The backend ID for the associated DOM node, if any')
 	frameId: str | None = Field(None, description='The frame ID for the frame associated with this nodes document')
 
+	def has_property(self, property_name: str, value: Any) -> bool:
+		if not self.properties:
+			return False
+		for prop in self.properties:
+			if prop.name == property_name and prop.value.value == value:
+				return True
+		return False
+
 
 class DOMNode(BaseModel):
 	"""A DOM node."""
@@ -196,6 +204,8 @@ class CombinedBaseNode(BaseModel):
 		if self.accessibility and self.accessibility.description:
 			return str(self.accessibility.description.value) if self.accessibility.description.value else None
 		return None
+
+	def __json__(self) -> dict: ...
 
 
 class CombinedTextNode(CombinedBaseNode):
@@ -331,7 +341,12 @@ class CombinedElementNode(CombinedBaseNode):
 
 			if isinstance(node, CombinedElementNode):
 				# Only process if node has accessibility data and it's not ignored
-				if node.has_accessibility_data() and node.accessibility and not node.accessibility.ignored:
+				if (
+					node.has_accessibility_data()
+					and node.accessibility
+					and not node.accessibility.ignored
+					and node.accessibility.has_property('focusable', True)
+				):
 					next_depth += 1
 
 					text = node.get_all_text_till_next_accessible_element()
@@ -341,7 +356,8 @@ class CombinedElementNode(CombinedBaseNode):
 						attributes_to_include = {
 							key: str(value).strip()
 							for key, value in node.attributes.items()
-							if key in include_attributes and str(value).strip() != ''
+							if key in include_attributes
+							# and str(value).strip() != '' # we can display empty values too idk
 						}
 
 						# Remove duplicate values (same logic as DOMElementNode)
@@ -419,10 +435,10 @@ class CombinedElementNode(CombinedBaseNode):
 
 			elif isinstance(node, CombinedTextNode):
 				# Add text only if it doesn't have a parent with accessibility data
-				if node.has_parent_with_accessibility():
+				if node.has_parent_with_accessibility() or node.has_accessibility_data():
 					return
 
-				if node.parent and node.parent.is_visible and node.parent.is_top_element:
+				if node.parent and node.parent.is_visible:
 					formatted_text.append(f'{depth_str}{node.text}')
 
 		process_node(self, 0)

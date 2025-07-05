@@ -2,7 +2,8 @@ import logging
 from typing import Any
 
 from browser_use.browser.context import Browser
-from browser_use.dom.a11y.views import AccessibilityTreeResponse, DOMTreeResponse
+from browser_use.dom.a11y.combined_tree_processor import CombinedTreeProcessor
+from browser_use.dom.a11y.views import AccessibilityTreeResponse, CombinedTreeResponse, DOMTreeResponse
 
 # if TYPE_CHECKING:
 # 	pass
@@ -13,6 +14,7 @@ logger = logging.getLogger(__name__)
 class A11yService:
 	def __init__(self, browser: Browser):
 		self.browser = browser
+		self.combined_tree_processor = CombinedTreeProcessor()
 
 	async def get_accessibility_tree(self) -> AccessibilityTreeResponse:
 		page = await self.browser.get_current_page()
@@ -56,14 +58,12 @@ class A11yService:
 			for frame_doc in frame_documents:
 				await self._collect_all_nodes(cdp, frame_doc, all_nodes, [])
 
-			response_data = {
-				'root': root_node,
-				'nodes': all_nodes,
-				'total_nodes': len(all_nodes),
-				'frame_count': len(frame_documents),
-			}
-
-			return DOMTreeResponse.model_validate(response_data)
+			return DOMTreeResponse(
+				root=root_node,
+				nodes=all_nodes,
+				total_nodes=len(all_nodes),
+				frame_count=len(frame_documents),
+			)
 
 		except Exception as e:
 			logger.error(f'Error getting DOM tree: {e}')
@@ -132,3 +132,9 @@ class A11yService:
 					return result
 
 		return None
+
+	async def get_combined_tree(self) -> CombinedTreeResponse:
+		"""Get the combined DOM + accessibility tree."""
+		accessibility_tree = await self.get_accessibility_tree()
+		dom_tree = await self.get_entire_dom_tree()
+		return self.combined_tree_processor.create_combined_tree(accessibility_tree, dom_tree)
