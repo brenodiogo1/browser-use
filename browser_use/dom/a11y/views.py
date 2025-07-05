@@ -246,7 +246,9 @@ class CombinedElementNode(CombinedBaseNode):
 	attributes: dict[str, str] = Field(default_factory=dict, description='DOM attributes')
 
 	# Interaction properties
-	is_interactive: bool = Field(default=False, description='Whether element is interactive')
+	# is_interactive: bool = Field(default=False, description='Whether element is interactive')
+	interactive_index: int | None = Field(None, description='Index of interactive element')
+
 	# is_top_element: bool = Field(default=False, description='Whether element is top-level')
 	is_in_viewport: bool = Field(default=False, description='Whether element is in viewport')
 
@@ -261,7 +263,7 @@ class CombinedElementNode(CombinedBaseNode):
 			'node_id': self.node_id,
 			'backend_node_id': self.backend_node_id,
 			'is_visible': self.is_visible,
-			'is_interactive': self.is_interactive,
+			'interactive_index': self.interactive_index,
 			'is_in_viewport': self.is_in_viewport,
 			'shadow_root': self.shadow_root,
 			'xpath': self.xpath,
@@ -284,8 +286,8 @@ class CombinedElementNode(CombinedBaseNode):
 
 		# Add extra info
 		extras = []
-		if self.is_interactive:
-			extras.append('interactive')
+		if self.interactive_index is not None:
+			extras.append(f'interactive:{self.interactive_index}')
 		if self.shadow_root:
 			extras.append('shadow-root')
 		if self.is_in_viewport:
@@ -350,7 +352,7 @@ class CombinedElementNode(CombinedBaseNode):
 					and node.has_accessibility_data()
 					and node.accessibility
 					and not node.accessibility.ignored
-					and node.is_interactive
+					and node.interactive_index is not None
 				):
 					next_depth += 1
 
@@ -407,11 +409,11 @@ class CombinedElementNode(CombinedBaseNode):
 								f'{key}={cap_text_length(value, 15)}' for key, value in attributes_to_include.items()
 							)
 
-					# Build the line with accessibility indicator
+					# Build the line with accessibility indicator using interactive index
 					if node.is_new:
-						accessibility_indicator = f'*[a11y:{node.get_accessibility_role() or "unknown"}]'
+						accessibility_indicator = f'*[{node.interactive_index}]'
 					else:
-						accessibility_indicator = f'[a11y:{node.get_accessibility_role() or "unknown"}]'
+						accessibility_indicator = f'[{node.interactive_index}]'
 
 					line = f'{depth_str}{accessibility_indicator}<{node.tag_name}'
 

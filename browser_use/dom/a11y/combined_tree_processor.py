@@ -1,5 +1,7 @@
 import logging
 
+from typing_extensions import TypedDict
+
 from browser_use.dom.a11y.views import (
 	AccessibilityTreeResponse,
 	CombinedElementNode,
@@ -10,6 +12,16 @@ from browser_use.dom.a11y.views import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+class InteractiveCounterType(TypedDict):
+	value: int
+
+
+class StatsTreeProcessor(TypedDict):
+	total_nodes: int
+	accessible_nodes: int
+	interactive_nodes: int
 
 
 class CombinedTreeProcessor:
@@ -30,11 +42,14 @@ class CombinedTreeProcessor:
 				ax_by_backend_id[ax_node.backendDOMNodeId] = ax_node
 
 		# Statistics tracking
-		stats = {
+		stats: StatsTreeProcessor = {
 			'total_nodes': 0,
 			'accessible_nodes': 0,
 			'interactive_nodes': 0,
 		}
+
+		# Interactive index counter for depth-first numbering
+		interactive_counter: InteractiveCounterType = {'value': 0}
 
 		def collect_accessible_children(dom_node):
 			"""Collect all accessible children and descendants from a DOM node."""
@@ -87,6 +102,7 @@ class CombinedTreeProcessor:
 						tag_name=dom_node.localName or dom_node.nodeName.lower(),
 						attributes=attributes,
 						accessibility=None,  # No accessibility data for container
+						interactive_index=None,  # Container nodes are not interactive
 						children=accessible_children,
 						parent=None,
 						is_new=True,
@@ -101,9 +117,12 @@ class CombinedTreeProcessor:
 
 			stats['accessible_nodes'] += 1
 
-			# Check if it's interactive
+			# Check if it's interactive and assign index
 			is_interactive = self._is_interactive_node(accessibility_data)
+			interactive_index = None
 			if is_interactive:
+				interactive_index = interactive_counter['value']
+				interactive_counter['value'] += 1
 				stats['interactive_nodes'] += 1
 
 			# Create the appropriate combined node type
@@ -132,8 +151,7 @@ class CombinedTreeProcessor:
 					tag_name=dom_node.localName or dom_node.nodeName.lower(),
 					attributes=attributes,
 					accessibility=accessibility_data,
-					is_interactive=is_interactive,
-					# is_top_element=True,  # Could be refined based on specific criteria
+					interactive_index=interactive_index,
 					is_in_viewport=True,  # Could be refined with actual viewport checks
 					parent=None,
 					is_new=True,
@@ -167,6 +185,7 @@ class CombinedTreeProcessor:
 				node_value=dom_tree.root.nodeValue,
 				tag_name=dom_tree.root.localName or dom_tree.root.nodeName.lower(),
 				accessibility=None,
+				interactive_index=None,
 				parent=None,
 				is_new=True,
 				xpath=None,
