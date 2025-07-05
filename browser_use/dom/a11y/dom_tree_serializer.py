@@ -27,31 +27,31 @@ class DOMTreeSerializer:
 			depth_str = depth * '\t'
 
 			if isinstance(node, CombinedElementNode):
+				# Skip #document nodes entirely
+				if node.tag_name == '#document':
+					# Just process children without showing the document node
+					for child in node.children:
+						process_node(child, depth)
+					return
+
 				# Show accessible elements (both interactive and non-interactive)
 				if node.has_accessibility_data() and node.accessibility and not node.accessibility.ignored:
 					# Get text content from this element
 					text = node.get_all_text_till_next_accessible_element()
 
-					# Build the element representation
-					if node.interactive_index is not None:
-						# Interactive element with numbered index
-						if node.is_new:
-							indicator = f'*[{node.interactive_index}]'
-						else:
-							indicator = f'[{node.interactive_index}]'
-					else:
-						# Non-interactive accessible element
-						role = node.get_accessibility_role()
-						if role == 'RootWebArea':
-							indicator = '[page]'
-						else:
-							indicator = f'[{role or "element"}]'
-
 					# Build attributes string
 					attributes_html_str = self._build_attributes_string(node, include_attributes, text)
 
-					# Build the line
-					line = f'{depth_str}{indicator}<{node.tag_name}'
+					# Build the line - only show brackets for interactive elements
+					if node.interactive_index is not None:
+						# Interactive element with numbered index
+						if node.is_new:
+							line = f'{depth_str}*[{node.interactive_index}]<{node.tag_name}'
+						else:
+							line = f'{depth_str}[{node.interactive_index}]<{node.tag_name}'
+					else:
+						# Non-interactive accessible element - no brackets
+						line = f'{depth_str}<{node.tag_name}'
 
 					if attributes_html_str:
 						line += f' {attributes_html_str}'
@@ -81,13 +81,14 @@ class DOMTreeSerializer:
 						process_node(child, depth)
 
 			elif isinstance(node, CombinedTextNode):
-				# Show text nodes that have meaningful content
+				# Show text nodes that are leaf nodes with meaningful content
 				if node.text and node.text.strip() and len(node.text.strip()) > 0 and not node.has_parent_with_accessibility():
 					# Only show text if it's not already captured by a parent accessible element
 					text_content = node.text.strip()
 					if len(text_content) > 100:
 						text_content = text_content[:100] + '...'
-					formatted_text.append(f'{depth_str}"{text_content}"')
+					# Show as plain text without quotes or formatting
+					formatted_text.append(f'{depth_str}{text_content}')
 
 		process_node(root_node, 0)
 		return '\n'.join(formatted_text)
