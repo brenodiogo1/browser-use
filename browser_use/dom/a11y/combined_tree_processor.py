@@ -30,6 +30,33 @@ class CombinedTreeProcessor:
 	def __init__(self):
 		pass
 
+	def _should_ignore_accessibility_for_node(self, dom_node) -> bool:
+		"""Check if we should ignore accessibility data for structural/document nodes."""
+		if not dom_node:
+			return False
+
+		# Get the node name and tag name
+		node_name = dom_node.nodeName.lower() if dom_node.nodeName else ''
+		tag_name = dom_node.localName.lower() if dom_node.localName else ''
+
+		# Document-level nodes to ignore
+		document_level_nodes = {
+			'#document',
+			'#document-fragment',
+			'html',
+			'head',
+			'body',
+			'title',
+			'meta',
+			'link',
+			'style',
+			'script',
+			'noscript',
+		}
+
+		# Check node name or tag name
+		return node_name in document_level_nodes or tag_name in document_level_nodes
+
 	def create_combined_tree(
 		self, accessibility_tree: AccessibilityTreeResponse, dom_tree: DOMTreeResponse
 	) -> CombinedTreeResponse:
@@ -79,6 +106,11 @@ class CombinedTreeProcessor:
 			stats['total_nodes'] += 1
 			backend_id = dom_node.backendNodeId
 			accessibility_data = ax_by_backend_id.get(backend_id)
+
+			# Check if we should ignore accessibility data for this node
+			should_ignore_accessibility = self._should_ignore_accessibility_for_node(dom_node)
+			if should_ignore_accessibility:
+				accessibility_data = None
 
 			# If this node has no accessibility data, collect accessible children and return the best one
 			if not accessibility_data:
