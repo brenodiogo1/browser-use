@@ -6,6 +6,7 @@ using Chrome DevTools Protocol (CDP) accessibility calls.
 """
 
 from .combined_tree_processor import CombinedTreeProcessor
+from .dom_tree_serializer import DOMTreeSerializer
 from .service import A11yService
 from .views import (
 	AccessibilityTreeResponse,
@@ -21,6 +22,7 @@ from .views import (
 __all__ = [
 	'A11yService',
 	'CombinedTreeProcessor',
+	'DOMTreeSerializer',
 	'AccessibilityTreeResponse',
 	'AXNode',
 	'CombinedElementNode',
