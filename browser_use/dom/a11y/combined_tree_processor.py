@@ -137,7 +137,7 @@ class CombinedTreeProcessor:
 						interactive_index=None,  # Container nodes are not interactive
 						children=accessible_children,
 						parent=None,
-						is_new=True,
+						is_new=False,
 						xpath=None,
 					)
 
@@ -168,7 +168,7 @@ class CombinedTreeProcessor:
 					text=dom_node.nodeValue,
 					accessibility=accessibility_data,
 					parent=None,
-					is_new=True,
+					is_new=False,
 				)
 			else:
 				# Parse attributes from flat array to dict
@@ -186,7 +186,7 @@ class CombinedTreeProcessor:
 					interactive_index=interactive_index,
 					is_in_viewport=True,  # Could be refined with actual viewport checks
 					parent=None,
-					is_new=True,
+					is_new=False,
 					xpath=None,
 				)
 
@@ -219,7 +219,7 @@ class CombinedTreeProcessor:
 				accessibility=None,
 				interactive_index=None,
 				parent=None,
-				is_new=True,
+				is_new=False,
 				xpath=None,
 			)
 
