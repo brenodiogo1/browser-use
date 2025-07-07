@@ -73,7 +73,7 @@ class DOMTreeSerializer:
 				return None
 
 			# Only include nodes that have accessibility data and are not ignored
-			if node.has_accessibility_data() and node.accessibility and not node.accessibility.ignored:
+			if node.has_accessibility_data() and node.accessibility and not node.accessibility['ignored']:
 				simplified = SimplifiedNode(original_node=node)
 
 				# Process all children

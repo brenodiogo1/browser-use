@@ -36,6 +36,7 @@ dependencies = [
     "anthropic>=0.54.0",
     "groq>=0.28.0",
     "ollama>=0.5.1",
+    "cdp-use>=1.3.0",
 ]
 # google-api-core: only used for Google LLM APIs
 # pyperclip: only used for examples that use copy/paste
@@ -188,3 +189,6 @@ dev-dependencies = [
     # "pytest-playwright-asyncio>=0.7.0",  # not actually needed I think
     "pytest-timeout>=2.4.0",
 ]
+
+[tool.uv.sources]
+cdp-use = { path = "../py-cdp/dist/cdp_use-1.3.0.tar.gz" }
