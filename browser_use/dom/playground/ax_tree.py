@@ -1,5 +1,6 @@
 import asyncio
 import json
+import os
 
 import aiofiles
 import httpx
@@ -52,15 +53,66 @@ async def test_combined_accessibility_tree():
 
 			print(response)
 
+			# if dir does not exist, create it
+			if not os.path.exists('tmp/ax_tree'):
+				os.makedirs('tmp/ax_tree')
+
 			# save to file
-			async with aiofiles.open('tmp/ax_tree_full.json', 'w') as f:
+			async with aiofiles.open('tmp/ax_tree/ax_tree_full.json', 'w') as f:
 				await f.write(json.dumps(response, indent=2))
 
 			progressive_response = await progressive_ax_tree(cdp, session_id)
 			print(progressive_response)
 
-			async with aiofiles.open('tmp/ax_tree_progressive.json', 'w') as f:
+			async with aiofiles.open('tmp/ax_tree/ax_tree_progressive.json', 'w') as f:
 				await f.write(json.dumps(progressive_response, indent=2))
+
+			progressive_response = await full_to_progressive_ax_tree(response)
+			async with aiofiles.open('tmp/ax_tree/ax_tree_progressive_full.json', 'w') as f:
+				await f.write(json.dumps(progressive_response, indent=2))
+
+			print(progressive_response)
+
+
+async def full_to_progressive_ax_tree(full_ax_tree: GetFullAXTreeReturns) -> GetFullAXTreeReturns:
+	# take the first node, and add all its children to the progressive tree if they are not ignored, repeat for all nodes (recursively)
+	tree_lookup: dict[str, AXNode] = {node['nodeId']: node for node in full_ax_tree['nodes']}
+
+	if not full_ax_tree['nodes']:
+		return {'nodes': []}
+
+	first_node = full_ax_tree['nodes'][0]
+	progressive_tree: list[AXNode] = []
+
+	if not first_node.get('childIds'):
+		return {'nodes': []}
+
+	# Add the first node itself if it's not ignored, as it's the root of our traversal.
+	if not first_node.get('ignored', True):
+		progressive_tree.append(first_node)
+
+	for child_id in first_node.get('childIds', []):
+		_get_descendants_recursive(child_id, tree_lookup, progressive_tree)
+
+	return {'nodes': progressive_tree}
+
+
+def _get_descendants_recursive(node_id: str, tree_lookup: dict[str, AXNode], result_nodes: list[AXNode]):
+	"""Recursively traverses and adds non-ignored nodes to the result list."""
+	if node_id not in tree_lookup:
+		return
+
+	node = tree_lookup[node_id]
+
+	# Add the node itself if it's not ignored.
+	if not node.get('ignored', True):
+		result_nodes.append(node)
+
+	# Recurse for children, but only if the current node wasn't ignored.
+	# This prevents traversing down ignored subtrees.
+	if not node.get('ignored', True):
+		for child_id in node.get('childIds', []):
+			_get_descendants_recursive(child_id, tree_lookup, result_nodes)
 
 
 async def progressive_ax_tree(cdp: CDPClient, session_id: str) -> GetFullAXTreeReturns:
@@ -78,10 +130,10 @@ async def progressive_ax_tree(cdp: CDPClient, session_id: str) -> GetFullAXTreeR
 		interesting_nodes.append(root_node)
 
 	# Recursively get interesting child nodes
-	if 'childIds' in root_node:
-		for child_id in root_node['childIds']:
-			child_nodes = await _get_interesting_nodes(cdp, session_id, child_id)
-			interesting_nodes.extend(child_nodes)
+	# if 'childIds' in root_node:
+	# 	for child_id in root_node['childIds']:
+	child_nodes = await _get_interesting_nodes(cdp, session_id, root_node['nodeId'])
+	interesting_nodes.extend(child_nodes)
 
 	return {'nodes': interesting_nodes}
 

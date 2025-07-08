@@ -1,7 +1,8 @@
 import logging
 
 from cdp_use import CDPClient
-from cdp_use.cdp.accessibility.types import AXNode, AXNodeId
+from cdp_use.cdp.accessibility.commands import GetFullAXTreeReturns
+from cdp_use.cdp.accessibility.types import AXNode
 from cdp_use.cdp.dom.commands import GetDocumentReturns
 from cdp_use.cdp.dom.types import Node
 
@@ -46,7 +47,7 @@ class A11yService:
 
 		raise ValueError('No target ID found for page')
 
-	async def get_accessibility_tree(self):
+	async def get_accessibility_tree(self) -> GetFullAXTreeReturns:
 		page = await self.browser.get_current_page()
 
 		if self.browser.browser_context is None:
@@ -56,68 +57,51 @@ class A11yService:
 
 		await self.cdp.send.Accessibility.enable(session_id=session_id)
 		await self.cdp.send.DOM.enable(session_id=session_id)
-		response = await self.cdp.send.Accessibility.getFullAXTree(session_id=session_id)
 
-		# Filter out nodes that have ignored parents or are ignored themselves
-		first_node, *rest_nodes = response['nodes']
-		filtered_nodes = self._filter_ignored_nodes(rest_nodes)
-		response['nodes'] = [first_node] + filtered_nodes
+		# Get the root AX node first
+		root_response = await self.cdp.send.Accessibility.getRootAXNode(session_id=session_id)
 
-		return response
+		if not root_response or 'node' not in root_response:
+			return {'nodes': []}
 
-	def _filter_ignored_nodes(self, nodes: list[AXNode]) -> list[AXNode]:
-		"""
-		Filter out nodes that are ignored or have ignored parents.
+		root_node = root_response['node']
 
-		This implements the algorithm that:
-		1. Registers nodes to be deleted if they have ignored=True
-		2. Recursively marks all children of ignored nodes for deletion
-		3. Returns only the nodes that should be kept
-		"""
-		if not nodes:
-			return []
+		# Get all interesting nodes starting from root
+		interesting_nodes = []
+		if not root_node.get('ignored', True):
+			interesting_nodes.append(root_node)
 
-		# Create a mapping of nodeId to node for fast lookup
-		node_map: dict[AXNodeId, AXNode] = {node['nodeId']: node for node in nodes}
+		# Recursively get interesting child nodes
+		if 'childIds' in root_node:
+			for child_id in root_node['childIds']:
+				child_nodes = await self._get_interesting_nodes(session_id, child_id)
+				interesting_nodes.extend(child_nodes)
 
-		# Track nodes to be deleted
-		nodes_to_delete: set[AXNodeId] = set()
+		return {'nodes': interesting_nodes}
 
-		# First pass: identify directly ignored nodes
-		for node in nodes:
-			if node.get('ignored', False):
-				nodes_to_delete.add(node['nodeId'])
+	async def _get_interesting_nodes(self, session_id: str, node_id: str) -> list[AXNode]:
+		"""Recursively get interesting accessibility nodes, filtering out ignored ones."""
+		result: list[AXNode] = []
 
-		# Second pass: recursively mark all children of ignored nodes for deletion
-		def mark_children_for_deletion(node_id: AXNodeId):
-			"""Recursively mark all children of a node for deletion."""
-			if node_id in node_map:
-				node = node_map[node_id]
-				child_ids = node.get('childIds', [])
-				for child_id in child_ids:
-					if child_id not in nodes_to_delete:
-						nodes_to_delete.add(child_id)
-						mark_children_for_deletion(child_id)
+		try:
+			# Get child nodes for this node
+			child_response = await self.cdp.send.Accessibility.getChildAXNodes(session_id=session_id, params={'id': node_id})
 
-		# Mark all children of ignored nodes for deletion
-		for ignored_node_id in list(nodes_to_delete):
-			mark_children_for_deletion(ignored_node_id)
+			for node in child_response.get('nodes', []):
+				# Include node if it's not ignored
+				if not node.get('ignored', True):
+					result.append(node)
 
-		# Third pass: also check for nodes whose parents are marked for deletion
-		# This handles cases where parent-child relationships might be missed
-		# for node in nodes:
-		# 	parent_id = node.get('parentId')
-		# 	if parent_id and parent_id in nodes_to_delete:
-		# 		if node['nodeId'] not in nodes_to_delete:
-		# 			nodes_to_delete.add(node['nodeId'])
-		# 			mark_children_for_deletion(node['nodeId'])
+					# Only recurse if the node is not ignored
+					if 'childIds' in node:
+						for child_id in node['childIds']:
+							child_nodes = await self._get_interesting_nodes(session_id, child_id)
+							result.extend(child_nodes)
 
-		# Return only nodes that are not marked for deletion
-		filtered_nodes = [node for node in nodes if node['nodeId'] not in nodes_to_delete]
+		except Exception as e:
+			logger.warning(f'Failed to get child AX nodes for {node_id}: {e}')
 
-		logger.info(f'Filtered out {len(nodes) - len(filtered_nodes)} ignored nodes and their children')
-
-		return filtered_nodes
+		return result
 
 	async def get_entire_dom_tree(self) -> GetDocumentReturns:
 		"""Get the complete DOM tree including iframes and shadow DOM using raw CDP calls."""
