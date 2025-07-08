@@ -31,7 +31,7 @@ class DomService:
 		self.xpath_cache = {}
 		self.logger = logger or logging.getLogger(__name__)
 
-		self.js_code = resources.files('browser_use.dom').joinpath('buildDomTree.js').read_text()
+		self.js_code = resources.files('browser_use.dom.dom_tree').joinpath('index.js').read_text()
 
 	# region - Clickable elements
 	@time_execution_async('--get_clickable_elements')
@@ -98,7 +98,9 @@ class DomService:
 		}
 
 		try:
+			self.logger.debug(f'🔧 Starting JavaScript DOM analysis for {self.page.url[:50]}...')
 			eval_page: dict = await self.page.evaluate(self.js_code, args)
+			self.logger.debug('✅ JavaScript DOM analysis completed')
 		except Exception as e:
 			self.logger.error('Error evaluating JavaScript: %s', e)
 			raise
@@ -128,7 +130,10 @@ class DomService:
 				# processed_nodes,
 			)
 
-		return await self._construct_dom_tree(eval_page)
+		self.logger.debug('🔄 Starting Python DOM tree construction...')
+		result = await self._construct_dom_tree(eval_page)
+		self.logger.debug('✅ Python DOM tree construction completed')
+		return result
 
 	@time_execution_async('--construct_dom_tree')
 	async def _construct_dom_tree(
