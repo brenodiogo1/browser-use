@@ -13,7 +13,6 @@ from .views import (
 	CombinedElementNode,
 	CombinedTextNode,
 	CombinedTreeResponse,
-	DOMNode,
 	NodeType,
 )
 
